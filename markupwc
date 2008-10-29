@@ -1,0 +1,244 @@
+#!/bin/env ruby
+###########################################################################
+# mkdwc: Behaves like wc(1) but operates on the raw text of one or more
+#        Markdown or Textile files.
+# Tammy Cravit, tammy@tammycravit.us
+###########################################################################
+# This code can also be included into another script if you want to extend
+# the MarkdownWC class.
+###########################################################################
+# This is the third take on this script, and abstracts out the markup-
+# specific stuff as much as I know how to do. That way, the script can
+# fairly easily be expanded to support just about any markup that can be
+# easily converted to HTML, just by plugging in whatever code is needed
+# to render the markup, and writing a new formatter.
+###########################################################################
+
+# Include the gems and packages we need
+%w[rubygems peg_markdown RedCloth stringray optparse on_execute].each {
+  |dep| 
+  require dep 
+}
+
+OPTIONS = {
+  :chars              => false,
+  :words              => false,
+  :lines              => false,
+  :ingore_underscores => true,
+}
+
+###########################################################################
+# Load the StringRay stuff
+###########################################################################
+
+String.send :include, StringRay
+
+###########################################################################
+# These classes abstract out the markup-specific formatting stuff
+# so we can use one utility script for multiple markup languages.
+# 
+# To create a new markup formatter engine, do the following:
+#
+# 1. Define a class that inherits from MarkupEngineFormatter
+# 2. Add a markup_engine method that returns the class name of the
+#    markup processor. The markup processor must take the marked-up
+#    text as an argument to initialize, and must define a to_html 
+#    method which returns valid HTML.
+# 3. Add a file_masks method that returns an array of the file extensions
+#    which are valid for the new markup language.
+# 4. Add a file_type method that returns the name of the markup language.
+#    This is used by optparse in displaying the usage message.
+# 5. Add a test to the on_execute block at the end of the script, which
+#    dispatches to your new class based on the script name.
+# 6. Create a symlink from markupwc to the new script name you defined in
+#    step 5. 
+###########################################################################
+
+class MarkupEngineFormatter
+  def initialize
+    @file_content = ""
+  end
+  
+  def set_content(content)
+    @file_content = content
+  end
+  
+  def strip(s)
+    s.gsub(/<\/?[^>]*>/, "").gsub(/\&\#[0123456789]+\;/, "?")
+  end
+    
+  def strip_markup
+    engine = markup_engine.new(@file_content)
+    strip engine.to_html
+  end
+  
+  def select_files(alist)
+    filemask = file_masks.join("|")
+    alist.find_all{|item| item =~ /\.(#{filemask})$/}
+  end
+end
+
+# Formatter for Markdown files
+class MarkdownFormatter < MarkupEngineFormatter
+  def markup_engine
+    PEGMarkdown
+  end
+  
+  def file_masks
+    %w[markdown mkd mdown markdn md]
+  end
+  
+  def file_type
+    "Markdown"
+  end
+end
+
+# Formatter for Textile files
+class TextileFormatter < MarkupEngineFormatter
+  def markup_engine
+    RedCloth
+  end
+  
+  def file_masks
+    %w[textile]
+  end
+  
+  def file_type
+    "Textile"
+  end
+end
+
+###########################################################################
+# MarkupWC is the main class for the application.
+###########################################################################
+
+class MarkupWC
+  
+  def initialize(formatter,filetype)
+    @formatter = formatter
+    @filetype  = @formatter.file_type
+  end
+  
+  # Count the characters, words and lines in a single Markdown file.
+  def count_file(filepath)
+    if File.exists?(filepath)
+      file_lines = IO.readlines(filepath)
+      lines      = file_lines.count
+      @formatter.set_content(file_lines.join("\n"))
+      stripped = @formatter.strip_markup
+      characters = stripped.length
+      words      = stripped.to_stray.select {
+                        |w| w.is_a? StringRay::Word }.size
+      [characters,words,lines]
+    else
+      [0,0,0]
+    end
+  end
+  
+  # Invoke count_file on a group of files, and display individual and 
+  # aggregate results
+  def count_many_files(filelist)
+    tchars = twords = tlines = 0
+    
+    unless filelist.empty?
+      filelist.each { |f| 
+        chars, words, lines = count_file(f)
+        print_result f, chars, words, lines        
+        tchars += chars ; twords += words ; tlines += lines
+      }
+      if filelist.count > 1
+        print_result "total", tchars, twords, tlines    
+      end
+    end
+  end
+  
+  # Parse the command line options
+  def parse_command_line
+    o = OptionParser.new do |o|
+      script_name = $0.split('/').last
+      
+      o.set_summary_indent('   ')
+      
+      o.banner =    "Usage: #{script_name} [ -c | -w | -l ] <file> [file] ..."
+      o.define_head "Count words, lines, and characters in one or more #{@filetype} files."
+      o.separator   ""
+      
+      o.on("-c", "--chars", "Count only characters") { |OPTIONS[:chars]| }
+      o.on("-w", "--words", "Count only words")      { |OPTIONS[:words]| }
+      o.on("-l", "--lines", "Count only lines")      { |OPTIONS[:lines]| }
+      o.on("-a", "--all-files", 
+        "Include files beginning with _")     { |OPTIONS[:ignore_underscores]|}
+      o.separator ""
+      
+      o.on_tail("-h", "--help", "Show this help message") { puts o; exit }
+      o.parse!(ARGV)
+      
+      if ARGV.count == 0
+        puts o
+        exit
+      end
+      
+      numopts = 0
+      %w[chars words lines].each { |opt| numopts += 1 if OPTIONS[opt.intern] }
+      if numopts > 1
+        puts "The -c, -w and -l options are mututally exclusive" 
+        puts ""
+        puts o
+        exit
+      end
+    end
+  end
+  
+  # Process a group of files specified on the command line. This is the 
+  # entrypoint for the script when it's invoked interactively.
+  def process_files
+    parse_command_line
+
+    filelist = @formatter.select_files(ARGV)
+    unless OPTIONS[:ignore_underscores]
+      filelist = filelist.find_all{|item| item !~ /^_/}
+    end
+    if filelist.empty?
+      puts "#{$0.split('/').last}: filelist is empty"
+      exit
+    end
+    count_many_files filelist
+  end
+  
+private
+  # Display the results for a single file.
+  def print_result(file, chars, words, lines)
+    if OPTIONS[:chars]
+      printf "%6d %s\n", chars, file
+    elsif OPTIONS[:words]
+      printf "%6d %s\n", words, file
+    elsif OPTIONS[:lines]
+      printf "%6d %s\n", lines, file
+    else
+      printf "%6d %6d %6d %s\n", lines, words, chars, file
+    end
+  end
+end
+
+###########################################################################
+# Actually run the script from the command line
+###########################################################################
+
+on_execute do
+  script_name = $0.split('/').last
+  formatter, filetype = nil, ""
+  
+  if script_name == "mkdwc" or script_name == "mmwc"
+    formatter, filetype = MarkdownFormatter.new, "Markdown"
+  elsif script_name == "ttwc"
+    formatter, filetype = TextileFormatter.new, "Textile"
+  else
+    puts "Don't know what to do for script: #{$0}"
+    exit
+  end
+  
+  unless formatter.nil?
+    MarkupWC.new(formatter, filetype).process_files
+  end
+end
+
