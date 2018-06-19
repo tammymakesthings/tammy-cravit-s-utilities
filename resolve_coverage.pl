@@ -6,6 +6,54 @@
 #
 # Version 1.00, 2018-06-15, tammycravit@me.com
 ############################################################################
+# Easy integration with Simplecov:
+#
+# 1. Copy this script into your Ruby project's bin/ directory.
+#
+# 2. Add the following to your Ruby project's Rakefile:
+#
+#   namespace :coverage do
+#     desc "Generate a contextual report from the SimpleCov output"
+#     task :resolve do
+#       project_root = File.expand_path(File.join(File.dirname(__FILE__)))
+#       system("#{project_root}/bin/resolve_coverage.pl #{project_root}/coverage/coverage.txt")
+#     end
+#   end
+#
+# 3. Add the following to the top of spec/spec_helper.rb:
+#
+#   require 'simplecov'
+#   require 'simplecov-erb'
+#
+#   def run_coverage_resolver
+#     project_root    = File.expand_path(File.join(File.dirname(__FILE__), ".."))
+#     resolver_script = File.expand_path(File.join(project_root, "bin", "resolve_coverage.pl"))
+#     coverage_txt    = File.expand_path(File.join(project_root, "coverage", "coverage.txt"))
+#     detail_txt      = File.expand_path(File.join(project_root, "coverage", "coverage_detail.txt"))
+#
+#     system("#{resolver_script} --bare #{coverage_txt} > #{detail_txt}")
+#     puts "Contextual coverage report generated for RSpec to #{detail_txt}."
+#   end
+#
+#   SimpleCov.start do
+#     add_group "Library", "lib"
+#     add_group "Tests",   "spec"
+#     # Add other groups etc. as needed.
+#     SimpleCov.formatter = SimpleCov::Formatter::ERBFormatter
+#   end
+#
+#   SimpleCov.at_exit do
+#     SimpleCov.result.format!
+#     run_coverage_resolver
+#   end
+#
+# Now the plain text coverage detail report will be auto-generated into the
+# file coverage/coverage_detail.txt after your specs run. If you want to
+# generate a pretty-printed and colorized report on the fly, you can run
+# something like:
+#
+#   $ rake coverage:resolve | less
+############################################################################
 
 use File::Spec;
 use File::Basename;
@@ -168,3 +216,5 @@ while (<COVERAGE>)
 }
 close (COVERAGE);
 exit 0;
+
+__END__
