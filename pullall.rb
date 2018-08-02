@@ -32,11 +32,11 @@ class GitPullAll
   end
 
   def contains_git_repo?(the_dir)
-    Dir.exists?(File.expand_path(File.join(the_dir, ".git")))
+    Dir.exists?(File.expand_path(File.join(the_dir, '.git')))
   end
 
   def has_remote_origin?(the_dir)
-    git_config = File.expand_path(File.join(the_dir, ".git", "config"))
+    git_config = File.expand_path(File.join(the_dir, '.git', 'config'))
     return false unless File.exists?(git_config)
     cfg = ParseConfig.new(git_config)
     return cfg.get_groups.include?('remote "origin"')
