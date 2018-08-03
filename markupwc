@@ -1,4 +1,4 @@
-#!/bin/env ruby
+#!/usr/bin/env ruby
 ###########################################################################
 # mkdwc: Behaves like wc(1) but operates on the raw text of one or more
 #        Markdown or Textile files.

@@ -1,4 +1,4 @@
-#!/home/tammy/.rvm/rubies/ruby-2.5.0/bin/ruby
+#!/usr/bin/env ruby
 
 require 'parseconfig'
 require 'git'

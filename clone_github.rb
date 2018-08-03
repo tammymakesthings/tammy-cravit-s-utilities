@@ -1,4 +1,4 @@
-#!/home/tammy/.rvm/rubies/ruby-2.5.0/bin/ruby
+#!/usr/bin/env ruby
 ############################################################################
 # Clone all of your github repos into a project directory
 #

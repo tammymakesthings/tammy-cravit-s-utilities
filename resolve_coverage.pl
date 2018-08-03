@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl -w
 ############################################################################
 # resolve_coverage.pl: Parse the output of a Ruby simplecov_erb text file,
 #                      and generate a report with code context for missed
