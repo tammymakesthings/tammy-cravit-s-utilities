@@ -60,7 +60,7 @@ puts ""
 options = {}
 
 # Supply defaults for command line options
-options[:github_user] = "tammycravit"
+options[:github_user] = "tammymakesthings"
 options[:project_dir] = File.join(ENV["HOME"], "projects")
 
 # Parse and validate command line options
