@@ -42,7 +42,7 @@ def check_github_user_exists(username)
 end
 
 def fetch_repo_list(username)
-  return RESTGetRequest("https://api.github.com/users/#{username}/repos")
+  return RESTGetRequest("https://api.github.com/users/#{username}/repos?type=all")
 end
 
 ############################################################################
